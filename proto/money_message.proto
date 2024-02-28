@@ -1,0 +1,7 @@
+syntax = "proto3";
+option go_package = "pb/";
+
+message Money {
+  int64 amount = 1;
+  string currency_code = 2;
+}

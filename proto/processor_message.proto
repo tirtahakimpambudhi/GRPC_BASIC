@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+import "memory_message.proto";
+option go_package = "pb/";
+
+message CPU {
+  string brand = 1;
+  string name = 2;
+  uint32 number_cores = 3;
+  uint32 number_threads = 4;
+  double max_ghz = 5;
+  double min_ghz = 6;
+}
+
+message GPU {
+  string brand = 1;
+  string name = 2;
+  double max_ghz = 3;
+  double min_ghz = 4;
+  Memory memory = 5;
+}
+
+//Next OS Operation System

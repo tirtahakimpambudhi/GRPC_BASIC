@@ -1,0 +1,89 @@
+{
+  "id": "c43026e7-2253-4216-8c14-0fce5de48876",
+  "brand": "LENOVO",
+  "name": "IdeaPad",
+  "cpu": {
+    "brand": "RYZEN",
+    "name": "AMD Ryzen 5 5600X",
+    "number_cores": 7,
+    "number_threads": 12,
+    "max_ghz": 3.467632470483224,
+    "min_ghz": 2.9051700567880756
+  },
+  "ram": {
+    "value": "2",
+    "unit": "GIGABYTE"
+  },
+  "gpus": [
+    {
+      "brand": "NVIDIA",
+      "name": "GeForce RTX 3070",
+      "max_ghz": 1.0995341550375959,
+      "min_ghz": 1.0711171371629438,
+      "memory": {
+        "value": "3",
+        "unit": "GIGABYTE"
+      }
+    },
+    {
+      "brand": "APPLE SILICON",
+      "name": "M1 GPU",
+      "max_ghz": 1.4915350546493722,
+      "min_ghz": 1.4857570003500844,
+      "memory": {
+        "value": "4",
+        "unit": "GIGABYTE"
+      }
+    }
+  ],
+  "storages": [
+    {
+      "driver": "SSD",
+      "memory": {
+        "value": "476",
+        "unit": "GIGABYTE"
+      }
+    },
+    {
+      "driver": "HDD",
+      "memory": {
+        "value": "1",
+        "unit": "TERABYTE"
+      }
+    },
+    {
+      "driver": "HDD",
+      "memory": {
+        "value": "6",
+        "unit": "TERABYTE"
+      }
+    }
+  ],
+  "screen": {
+    "size_inch": 14.992539,
+    "resolution": {
+      "width": 3194,
+      "height": 5678
+    },
+    "panel": "IPS",
+    "multi_touch": false
+  },
+  "keyboard": {
+    "layout": "AZERTY",
+    "backlist": false
+  },
+  "weight_kg": 3.8472667104496003,
+  "price": {
+    "amount": "630",
+    "currency_code": "USD"
+  },
+  "os": {
+    "linux": {
+      "distribution": "ARCH",
+      "version": "10.34",
+      "kernel_version": "Linux 2.78"
+    }
+  },
+  "release_year": 2004,
+  "updated_at": "2024-02-19T13:04:37.662951100Z"
+}

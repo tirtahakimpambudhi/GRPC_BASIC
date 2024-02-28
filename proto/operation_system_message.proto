@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+option go_package = "pb/";
+
+message OS {
+  oneof type_os {
+    Windows windows = 1;
+    Linux   linux   = 2;
+    MAC     mac_os  = 3;
+  }
+}
+
+
+message Windows {
+  string version = 1;
+  string edition = 2;
+}
+
+message Linux {
+  enum Distro {
+    UNKNOWN_DISTRO = 0;
+    UBUNTU = 1;
+    FEDORA = 2;
+    CENTOS = 3;
+    DEBIAN = 4;
+    ARCH = 5;
+    ALPINE = 6;
+    Mint = 7;
+  }
+  Distro distribution = 1;
+  string version = 2;
+  string kernel_version = 3;
+}
+
+message MAC {
+  string version = 1;
+  string build = 2;
+  string kernel_version = 3;
+}

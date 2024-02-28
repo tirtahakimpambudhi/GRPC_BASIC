@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+option go_package = "pb/";
+import "laptop_message.proto";
+import "filter_message.proto";
+import "google/protobuf/empty.proto";
+
+
+message ResponseRequestByID {
+  string id = 1;
+}
+
+message ResponsesLaptop {
+  repeated Laptop laptops = 1;
+}
+
+message ResponseRequestLaptop {
+  Laptop laptop = 1;
+}
+message RequestSearchByFilter {
+  Filter filter = 1;
+}
+
+service LaptopService {
+  rpc CreateLaptop(ResponseRequestLaptop) returns (ResponseRequestByID);
+  rpc GetLaptopByID(ResponseRequestByID) returns (ResponseRequestLaptop);
+  rpc GetAllLaptop(google.protobuf.Empty) returns (ResponsesLaptop);
+  rpc DeleteLaptopByID(ResponseRequestByID) returns (google.protobuf.Empty);
+  rpc GetSearchByFilter(RequestSearchByFilter) returns (stream ResponseRequestLaptop);
+}
