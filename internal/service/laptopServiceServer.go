@@ -1,30 +1,100 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"grpc_course/internal/config"
 	"grpc_course/internal/db/memory"
 	"grpc_course/internal/domain/model"
 	"grpc_course/pb"
+	"grpc_course/pkg"
+	"io"
 	"log"
 )
 
 type LaptopServerService struct {
 	pb.UnimplementedLaptopServiceServer
-	Store model.InMemoryStore
+	Store      model.InMemoryStore
+	ImageStore model.ImageStore
 }
 
-func NewLaptopServerService(store model.InMemoryStore) pb.LaptopServiceServer {
-	return &LaptopServerService{Store: store}
+func NewLaptopServerService(store model.InMemoryStore, imageStore model.ImageStore) pb.LaptopServiceServer {
+	return &LaptopServerService{Store: store, ImageStore: imageStore}
+}
+func (l *LaptopServerService) UploadImageLaptop(stream pb.LaptopService_UploadImageLaptopServer) error {
+	req, err := stream.Recv()
+	if err != nil {
+		log.Printf("error internal server : %s \n", err.Error())
+		return status.Error(codes.Internal, err.Error())
+	}
+	laptopId := req.GetInfo().GetLaptopId()
+	imageType := req.GetInfo().GetImageType()
+	log.Printf("receive request upload image with laptop id %s and image type %s", laptopId, imageType)
+	err, laptop := l.Store.Find(laptopId)
+	if err != nil {
+		log.Printf("error internal server : %s \n", err.Error())
+		return status.Error(codes.Internal, err.Error())
+	}
+	if laptop == nil {
+		log.Printf("error not found with io: %s \n", laptopId)
+		return status.Errorf(codes.NotFound, "laptop with id %s not found", laptopId)
+	}
+	imageData := bytes.Buffer{}
+	imageSize := 0
+	for {
+		if err := pkg.CtxError(stream.Context()); err != nil {
+			return err
+		}
+		log.Println("waiting data")
+		req, err := stream.Recv()
+		if err == io.EOF {
+			log.Println("no more data")
+			break
+		}
+		if err != nil {
+			log.Printf("error internal server : %s \n", err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+		chunk := req.GetChunkData()
+		size := len(chunk)
+		log.Printf("receive chunk with size %d \n", size)
+		imageSize += size
+		if imageSize > config.ImageSize {
+			log.Printf("error image size %d max image size %d \n", size, config.ImageSize)
+			return status.Errorf(codes.InvalidArgument, "error image size %d max image size %d", size, config.ImageSize)
+		}
+		_, err = imageData.Write(chunk)
+		if err != nil {
+			log.Printf("error internal server : %s \n", err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+
+	id, err := l.ImageStore.Save(laptopId, imageType, imageData)
+	if err != nil {
+		log.Printf("error internal server : %s \n", err.Error())
+		return status.Error(codes.Internal, err.Error())
+	}
+	res := &pb.UploadImageResponse{
+		ImageId: id,
+		Size:    uint32(imageSize),
+	}
+	err = stream.SendAndClose(res)
+	if err != nil {
+		log.Printf("error internal server : %s \n", err.Error())
+		return status.Error(codes.Internal, err.Error())
+	}
+	return nil
 }
 func (l *LaptopServerService) GetSearchByFilter(req *pb.RequestSearchByFilter, stream pb.LaptopService_GetSearchByFilterServer) error {
 	filter := req.GetFilter()
 	log.Printf("receive search request with filter %v \n", filter)
-	err := l.Store.Search(filter, func(laptops *pb.Laptop) error {
+	err := l.Store.Search(stream.Context(), filter, func(laptops *pb.Laptop) error {
 		log.Printf("found : %v \n", laptops)
 		res := &pb.ResponseRequestLaptop{Laptop: laptops}
 
@@ -42,6 +112,7 @@ func (l *LaptopServerService) GetSearchByFilter(req *pb.RequestSearchByFilter, s
 }
 func (l *LaptopServerService) CreateLaptop(ctx context.Context, laptop *pb.ResponseRequestLaptop) (*pb.ResponseRequestByID, error) {
 	req := laptop.GetLaptop()
+	//time.Sleep(6 * time.Second)
 	log.Printf("receive a create laptop request with id %s \n", req.Id)
 	if len(req.Id) > 0 {
 		if _, err := uuid.Parse(req.Id); err != nil {
@@ -51,13 +122,9 @@ func (l *LaptopServerService) CreateLaptop(ctx context.Context, laptop *pb.Respo
 		req.Id = uuid.New().String()
 		log.Printf("create UUID with ID %s \n", req.Id)
 	}
-	if ctx.Err() == context.DeadlineExceeded {
-		log.Println("deadline is exceeded")
-		return nil, status.Error(codes.DeadlineExceeded, "deadline is exceeded")
-	}
-	if ctx.Err() == context.Canceled {
-		log.Println("request canceled")
-		return nil, status.Error(codes.Canceled, "request canceled")
+
+	if err := pkg.CtxError(ctx); err != nil {
+		return nil, err
 	}
 	log.Println("successfully saved in database")
 	err := l.Store.Save(req)
@@ -78,13 +145,8 @@ func (l *LaptopServerService) GetLaptopByID(ctx context.Context, id *pb.Response
 	if _, err := uuid.Parse(reqId); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "laptop ID is not valid UUID  : %v", reqId)
 	}
-	if ctx.Err() == context.DeadlineExceeded {
-		log.Println("deadline is exceeded")
-		return nil, status.Error(codes.DeadlineExceeded, "deadline is exceeded")
-	}
-	if ctx.Err() == context.Canceled {
-		log.Println("request canceled")
-		return nil, status.Error(codes.Canceled, "request canceled")
+	if err := pkg.CtxError(ctx); err != nil {
+		return nil, err
 	}
 	err, laptop := l.Store.Find(reqId)
 	if err != nil {
@@ -101,13 +163,8 @@ func (l *LaptopServerService) GetLaptopByID(ctx context.Context, id *pb.Response
 
 func (l *LaptopServerService) GetAllLaptop(ctx context.Context, empty *empty.Empty) (*pb.ResponsesLaptop, error) {
 	log.Println("receive get all laptop")
-	if ctx.Err() == context.DeadlineExceeded {
-		log.Println("deadline is exceeded")
-		return nil, status.Error(codes.DeadlineExceeded, "deadline is exceeded")
-	}
-	if ctx.Err() == context.Canceled {
-		log.Println("request canceled")
-		return nil, status.Error(codes.Canceled, "request canceled")
+	if err := pkg.CtxError(ctx); err != nil {
+		return nil, err
 	}
 	err, laptops := l.Store.FindAll()
 	if err != nil {
@@ -124,13 +181,8 @@ func (l *LaptopServerService) DeleteLaptopByID(ctx context.Context, id *pb.Respo
 	if _, err := uuid.Parse(reqId); err != nil {
 		return &empty.Empty{}, status.Errorf(codes.InvalidArgument, "laptop ID is not valid UUID  : %v", reqId)
 	}
-	if ctx.Err() == context.DeadlineExceeded {
-		log.Println("deadline is exceeded")
-		return &empty.Empty{}, status.Error(codes.DeadlineExceeded, "deadline is exceeded")
-	}
-	if ctx.Err() == context.Canceled {
-		log.Println("request canceled")
-		return nil, status.Error(codes.Canceled, "request canceled")
+	if err := pkg.CtxError(ctx); err != nil {
+		return nil, err
 	}
 	err := l.Store.Delete(reqId)
 	if err != nil {

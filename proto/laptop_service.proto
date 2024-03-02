@@ -3,6 +3,7 @@ syntax = "proto3";
 option go_package = "pb/";
 import "laptop_message.proto";
 import "filter_message.proto";
+import "image_message.proto";
 import "google/protobuf/empty.proto";
 
 
@@ -21,10 +22,23 @@ message RequestSearchByFilter {
   Filter filter = 1;
 }
 
+message UploadImageRequest {
+  oneof data {
+    ImageInfo info = 1;
+    bytes chunk_data = 2;
+  }
+}
+message UploadImageResponse {
+  string image_id = 1;
+  uint32 size = 2;
+}
+
+
 service LaptopService {
   rpc CreateLaptop(ResponseRequestLaptop) returns (ResponseRequestByID);
   rpc GetLaptopByID(ResponseRequestByID) returns (ResponseRequestLaptop);
   rpc GetAllLaptop(google.protobuf.Empty) returns (ResponsesLaptop);
   rpc DeleteLaptopByID(ResponseRequestByID) returns (google.protobuf.Empty);
   rpc GetSearchByFilter(RequestSearchByFilter) returns (stream ResponseRequestLaptop);
+  rpc UploadImageLaptop(stream UploadImageRequest) returns (UploadImageResponse);
 }

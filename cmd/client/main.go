@@ -18,7 +18,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err.Error())
 	}
-	client := service.NewClient(context.Background(), pb.NewLaptopServiceClient(connect))
+	ctx := context.Background()
+	client := service.NewClient(ctx, pb.NewLaptopServiceClient(connect))
 	err = client.Run(*method)
 	if err != nil {
 		log.Fatal(err.Error())

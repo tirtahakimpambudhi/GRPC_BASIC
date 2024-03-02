@@ -1,12 +1,14 @@
 package memory
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/jinzhu/copier"
 	"grpc_course/internal/domain/model"
 	"grpc_course/pb"
 	"grpc_course/pkg"
+	"log"
 	"sync"
 )
 
@@ -22,16 +24,26 @@ func NewInMemoryStore() model.InMemoryStore {
 	return &InMemoryStore{db: make(map[string]*pb.Laptop)}
 }
 
-func (i *InMemoryStore) Search(filter *pb.Filter, found func(laptops *pb.Laptop) error) error {
+func (i *InMemoryStore) Search(ctx context.Context, filter *pb.Filter, found func(laptops *pb.Laptop) error) error {
 	i.mutex.Lock()
 	defer i.mutex.Unlock()
 
 	for _, laptop := range i.db {
 		if pkg.IsQualified(filter, laptop) {
+			////Heavy Process
+			//time.Sleep(time.Second)
 			other := &pb.Laptop{}
 			err := copier.Copy(other, laptop)
 			if err != nil {
 				return err
+			}
+			if ctx.Err() == context.DeadlineExceeded {
+				log.Println("deadline is exceeded")
+				return errors.New("deadline is exceeded")
+			}
+			if ctx.Err() == context.Canceled {
+				log.Println("request canceled")
+				return errors.New("request canceled")
 			}
 			errCallback := found(other)
 			if errCallback != nil {

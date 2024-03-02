@@ -19,7 +19,7 @@ func main() {
 	port := flag.Int("port", 0, "Port Grpc Server")
 	flag.Parse()
 	fmt.Printf("Listening GRPC Server 0.0.0.0:%d\n", *port)
-	server := service.NewLaptopServerService(memory.NewInMemoryStore())
+	server := service.NewLaptopServerService(memory.NewInMemoryStore(), memory.NewDiskImageStore("upload"))
 	grpcServer := grpc.NewServer()
 	pb.RegisterLaptopServiceServer(grpcServer, server)
 
