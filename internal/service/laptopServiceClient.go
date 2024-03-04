@@ -3,6 +3,7 @@ package service
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"github.com/golang/protobuf/ptypes/empty"
 	"grpc_course/factory"
@@ -26,6 +27,41 @@ func NewClient(ctx context.Context, connect pb.LaptopServiceClient) *Client {
 
 func (c *Client) Run(meth string) error {
 	switch meth {
+	case "score":
+		waitResponse := make(chan error)
+		var laptopID string
+		stream, err := c.connect.RateLaptop(c.ctx)
+		if err != nil {
+			return fmt.Errorf("ERROR INTERNAL SERVER %s ", err.Error())
+		}
+		isCreate := pkg.Input("Create New Laptop ? y/n ")
+		if isCreate != "y" {
+			laptopID = pkg.Input("laptop id")
+			return rateLaptop(stream, waitResponse, laptopID)
+		}
+		totalCreate, isNum := strconv.Atoi(pkg.Input("total "))
+		if isNum != nil {
+			return errors.New("invalid number")
+		}
+		for i := 0; i <= totalCreate; i++ {
+			res, err := c.connect.CreateLaptop(c.ctx, &pb.ResponseRequestLaptop{
+				Laptop: factory.NewLaptop(),
+			})
+			if err != nil {
+				return err
+			}
+			laptopID = res.GetId()
+			err = rateLaptop(stream, waitResponse, laptopID)
+			if err != nil {
+				return err
+			}
+		}
+		err = stream.CloseSend()
+		if err != nil {
+			return fmt.Errorf("cannot close send %s", err.Error())
+		}
+		return <-waitResponse
+
 	case "upload":
 		laptopID := pkg.Input("laptop id")
 		imagePath := pkg.Input("image path")
@@ -159,4 +195,37 @@ func (c *Client) Run(meth string) error {
 		return nil
 	}
 	return nil
+}
+
+func rateLaptop(stream pb.LaptopService_RateLaptopClient, waitResponse chan error, laptopID string) error {
+	// go routine wait response
+	go func() {
+		for {
+			res, err := stream.Recv()
+			if err == io.EOF {
+				log.Println("no more response")
+				waitResponse <- nil
+				return
+			}
+			if err != nil {
+				waitResponse <- fmt.Errorf("cannot receive response %s", err.Error())
+				return
+			}
+			json, err := pkg.ProtoBufToJSON(res)
+			if err != nil {
+				waitResponse <- fmt.Errorf("error parse json %s", err.Error())
+				return
+			}
+			fmt.Printf("receive response %v \n", json)
+		}
+	}()
+	//send request
+	err := stream.Send(&pb.RateLaptopRequest{
+		LaptopId: laptopID,
+		Score:    float64(factory.RandomInt(1, 10)),
+	})
+	if err != nil {
+		return fmt.Errorf("cannot sent request %s", stream.RecvMsg(nil))
+	}
+	return err
 }

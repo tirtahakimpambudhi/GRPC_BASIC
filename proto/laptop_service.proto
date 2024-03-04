@@ -33,6 +33,16 @@ message UploadImageResponse {
   uint32 size = 2;
 }
 
+message RateLaptopRequest {
+  string laptop_id = 1;
+  double score = 2;
+}
+
+message RateLaptopResponse {
+  string laptop_id = 1;
+  uint32 rated_count = 2;
+  double average_score = 3;
+}
 
 service LaptopService {
   rpc CreateLaptop(ResponseRequestLaptop) returns (ResponseRequestByID);
@@ -41,4 +51,5 @@ service LaptopService {
   rpc DeleteLaptopByID(ResponseRequestByID) returns (google.protobuf.Empty);
   rpc GetSearchByFilter(RequestSearchByFilter) returns (stream ResponseRequestLaptop);
   rpc UploadImageLaptop(stream UploadImageRequest) returns (UploadImageResponse);
+  rpc RateLaptop(stream RateLaptopRequest) returns (stream RateLaptopResponse);
 }

@@ -21,11 +21,59 @@ type LaptopServerService struct {
 	pb.UnimplementedLaptopServiceServer
 	Store      model.InMemoryStore
 	ImageStore model.ImageStore
+	ScoreStore model.ScoreStore
 }
 
-func NewLaptopServerService(store model.InMemoryStore, imageStore model.ImageStore) pb.LaptopServiceServer {
-	return &LaptopServerService{Store: store, ImageStore: imageStore}
+func NewLaptopServerService(store model.InMemoryStore, imageStore model.ImageStore, scoreStore model.ScoreStore) pb.LaptopServiceServer {
+	return &LaptopServerService{Store: store, ImageStore: imageStore, ScoreStore: scoreStore}
 }
+
+func (l *LaptopServerService) RateLaptop(stream pb.LaptopService_RateLaptopServer) error {
+	for {
+		if err := pkg.CtxError(stream.Context()); err != nil {
+			return err
+		}
+		req, err := stream.Recv()
+		if err == io.EOF {
+			log.Println("no more data")
+			break
+		}
+		if err != nil {
+			log.Printf("error internal server : %s \n", err.Error())
+			return status.Errorf(codes.Internal, "cannot receive request %s", err.Error())
+		}
+		laptopID := req.GetLaptopId()
+		score := req.GetScore()
+
+		if err, found := l.Store.Find(laptopID); err != nil {
+			log.Println("error internal server")
+			return status.Errorf(codes.Internal, "cannot find laptop %s", err.Error())
+		} else if found == nil {
+			log.Printf("laptop not found with id %s \n", laptopID)
+			return status.Errorf(codes.NotFound, "laptop with id %s not found", laptopID)
+		}
+		rating, err := l.ScoreStore.Add(laptopID, score)
+		if err != nil {
+			log.Printf("error internal server : %s \n", err.Error())
+			return status.Errorf(codes.Internal, "cannot add score error : %s", err.Error())
+		}
+
+		res := &pb.RateLaptopResponse{
+			LaptopId:     laptopID,
+			RatedCount:   rating.Count,
+			AverageScore: rating.Sum / float64(rating.Count),
+		}
+
+		err = stream.Send(res)
+		if err != nil {
+			log.Printf("error internal server : %s \n", err.Error())
+			return status.Errorf(codes.Internal, "cannot sent response : %s", err.Error())
+		}
+	}
+	return nil
+
+}
+
 func (l *LaptopServerService) UploadImageLaptop(stream pb.LaptopService_UploadImageLaptopServer) error {
 	req, err := stream.Recv()
 	if err != nil {
@@ -41,7 +89,7 @@ func (l *LaptopServerService) UploadImageLaptop(stream pb.LaptopService_UploadIm
 		return status.Error(codes.Internal, err.Error())
 	}
 	if laptop == nil {
-		log.Printf("error not found with io: %s \n", laptopId)
+		log.Printf("error not found with id: %s \n", laptopId)
 		return status.Errorf(codes.NotFound, "laptop with id %s not found", laptopId)
 	}
 	imageData := bytes.Buffer{}

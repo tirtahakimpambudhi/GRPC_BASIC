@@ -18,3 +18,7 @@ type ImageStore interface {
 	Save(laptopId string, imageType string, imageData bytes.Buffer) (string, error)
 	Delete(imageID string) error
 }
+
+type ScoreStore interface {
+	Add(laptopId string, score float64) (*Ratings, error)
+}

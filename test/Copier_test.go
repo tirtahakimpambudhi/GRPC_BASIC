@@ -1,6 +1,7 @@
 package test
 
 import (
+	"github.com/google/uuid"
 	"github.com/jinzhu/copier"
 	"github.com/stretchr/testify/require"
 	"grpc_course/factory"
@@ -17,7 +18,9 @@ func TestCopier(t *testing.T) {
 	require.NoError(t, err)
 	t.Log(pc1)
 }
-
+func TestGenerateUUID(t *testing.T) {
+	t.Log(uuid.NewString())
+}
 func TestCopiers(t *testing.T) {
 	var arr1 []*pb.Laptop
 	store := memory.NewInMemoryStore()
